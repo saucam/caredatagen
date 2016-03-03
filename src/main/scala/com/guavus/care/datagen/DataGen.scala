@@ -19,23 +19,23 @@ import scala.util.Random
 object DataGen {
   def main(args : Array[String]) {
     val sparkConf = new SparkConf()
-      .setAppName("Hotfoot")
-      .setMaster("local")
-      .set("spark.executor.memory", "2g")
+      .setAppName("CareDataGen")
+      .setMaster("yarn-client")
+      .set("spark.executor.memory", "24g")
 
     var input = new String;
     var output = new String;
     if (args.length < 2 ) {
       input = "/Users/yash.datta/Documents/Workspace/code/caredatagen/input/"
 
-      output = "/Users/yash.datta/Documents/Workspace/code/caredatagen/output"
+      output = "output"
     }
     else {
       input = args(0)
       output = args(1)
     }
 
-    FileUtils.deleteDirectory(new File(output))
+    //FileUtils.deleteDirectory(new File(output))
 
     val sc = new SparkContext(sparkConf)
     val sqlContext = new SQLContext(sc)
@@ -88,7 +88,7 @@ object DataGen {
 
 
     }) */
-    cube1Rdd.write.partitionBy("exporttimestamp", "timestamp").mode(SaveMode.Append).format("parquet").saveAsTable("output")
+    cube1Rdd.write.partitionBy("exporttimestamp", "timestamp").mode(SaveMode.Append).format("parquet").saveAsTable(output)
 
     //read the written output
 
