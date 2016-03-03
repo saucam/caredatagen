@@ -3,7 +3,9 @@ package com.guavus.care.datagen
 import java.io.File
 import java.nio.file.{FileSystems, Path}
 import java.util.Arrays
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FileUtils
+import org.apache.commons.math3.distribution.PoissonDistribution
+
 
 import org.apache.spark._
 import org.apache.spark.sql.hive
@@ -13,6 +15,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.sql.{SaveMode, SQLContext}
 import org.apache.spark.mllib.random.RandomRDDs._
+import org.apache.spark.util.Utils
 
 import scala.util.Random
 
@@ -63,26 +66,26 @@ object DataGen {
     //val cube1TempRdd = inputRdd.map(x => Cube1(x.getLong(0), Random.nextInt(5000), dist(Random.nextInt(100)), Random.nextInt(50).toLong, x.getLong(1),
     //                                       x.getLong(2), x.getLong(6), x.getLong(7), x.getLong(8), x.getLong(9), x.getLong(10), x.getLong(11)))
 
-    val qoeRDD = poissonRDD(sc, 70.0, inputSize, inputRdd.partitions.size)
+    // val qoeRDD = poissonRDD(sc, 70.0, inputSize, inputRdd.partitions.size)
 
-    val cube1Rdd = inputRdd.zipPartitions(qoeRDD, preservesPartitioning = true) { (thisIter, otherIter) =>
+    val rng = new PoissonDistribution(70.0)
+    val random = new Random()
+    rng.reseedRandomGenerator(random.nextLong())
+
+    val cube1Rdd = inputRdd.mapPartitions ({ (thisIter) =>
       new Iterator[Cube1] {
-        def hasNext: Boolean = (thisIter.hasNext, otherIter.hasNext) match {
-          case (true, true) => true
-          case (false, false) => false
-          case _ => throw new SparkException("Can only zip RDDs with " +
-            "same number of elements in each partition")
-        }
+        def hasNext: Boolean = thisIter.hasNext
         def next() = {
           val x = thisIter.next()
+          val qoe = rng.sample().toLong
           val cube1 = Cube1(x.getLong(0), Random.nextInt(5000).toLong, dist(Random.nextInt(100)), Random.nextInt(50).toLong, x.getLong(1),
-            x.getLong(2), x.getLong(6), x.getLong(7), x.getLong(8), x.getLong(9), x.getLong(10), x.getLong(11), otherIter.next().toLong,
+            x.getLong(2), x.getLong(6), x.getLong(7), x.getLong(8), x.getLong(9), x.getLong(10), x.getLong(11), qoe,
             x.getInt(12), x.getInt(13))
 
           (cube1)
         }
       }
-    }.toDF()
+    }, preservesPartitioning = true).toDF()
 
     /* val cube1Rdd = cube1TempRdd.zipPartitions(qoeRDD, preservePartitioning = true, {(iter1, iter2) =>
 
